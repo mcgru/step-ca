@@ -1,3 +1,5 @@
-.gitignore
 .env
 data/
+nginx-config/*.crt
+nginx-config/*.key
+nginx-config/fingerprint

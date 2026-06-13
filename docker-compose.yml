@@ -13,3 +13,4 @@ services:
       STEP_PROVISIONER_PASSWORD: ${STEP_PROVISIONER_PASSWORD}
     volumes:
       - ./data:/home/step
+      - ./nginx-config:/nginx-config

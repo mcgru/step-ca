@@ -6,8 +6,8 @@ up: .env data   ## Запустить CA
 down:           ## Остановить контейнер (данные сохраняются)
 	docker compose down
 
-init: .env      ## Инициализировать CA вручную
-	docker compose run --rm step-ca init
+init: .env data nginx-config ## Инициализировать CA + сгенерировать nginx config
+	docker compose run --rm --build step-ca init
 
 status:         ## Статус контейнера
 	docker compose ps
@@ -35,11 +35,11 @@ ca-cert:        ## Скопировать корневой сертификат 
 	@echo "Saved to data/root_ca.crt"
 
 reset:          ## [ОСТОРОЖНО] Удалить ВСЕ данные CA
-	@echo "Удалить data/? [y/N]"; \
+	@echo "Удалить data/ и nginx-config/? [y/N]"; \
 	read ans; \
 	if [ "$$ans" = "y" ]; then \
 		docker compose down -v; \
-		rm -rf data; \
+		rm -rf data nginx-config; \
 		echo "Готово. Запустите 'make up' для чистой установки."; \
 	fi
 
@@ -49,6 +49,9 @@ help:           ## Показать эту справку
 
 data:
 	mkdir -p data
+
+nginx-config:
+	mkdir -p nginx-config
 
 .env:
 	cp .env.example .env

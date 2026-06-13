@@ -3,23 +3,8 @@ set -e
 
 STEPPATH="${STEPPATH:-/home/step}"
 PASSWORD_FILE="${STEPPATH}/secrets/ca-password"
-DSN="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"
-
-wait_postgres() {
-    echo "==> Waiting for PostgreSQL..."
-    for i in $(seq 30); do
-        if pg_isready -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" >/dev/null 2>&1; then
-            echo "==> PostgreSQL ready."
-            return 0
-        fi
-        sleep 1
-    done
-    echo "==> ERROR: PostgreSQL not available after 30s"
-    exit 1
-}
 
 init_ca() {
-    wait_postgres
     echo "==> Initializing CA..."
 
     mkdir -p "${STEPPATH}/secrets"
@@ -33,9 +18,7 @@ init_ca() {
         --provisioner="${STEP_PROVISIONER_NAME}" \
         --password-file="${PASSWORD_FILE}" \
         --provisioner-password-file="${STEPPATH}/secrets/provisioner-password" \
-        --ssh \
-        --db-type="postgres" \
-        --db-dsn="${DSN}"
+        --ssh
 
     echo "==> CA initialized."
 }

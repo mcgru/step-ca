@@ -5,8 +5,12 @@ STEPPATH="${STEPPATH:-/home/step}"
 PASSWORD_FILE="${STEPPATH}/secrets/ca-password"
 NGINX_DIR="/nginx-config"
 
-# Fix ownership so step user can write to the bind-mounted directory
+# Fix ownership so step user can write to bind-mounted directories
 chown -R step:step "${STEPPATH}" 2>/dev/null || true
+
+if [ -d "${NGINX_DIR}" ]; then
+    chown -R step:step "${NGINX_DIR}" 2>/dev/null || true
+fi
 
 init_ca() {
     echo "==> Initializing CA..."
@@ -31,6 +35,7 @@ init_ca() {
     echo "==> Generating nginx config..."
 
     mkdir -p "${NGINX_DIR}"
+    chown -R step:step "${NGINX_DIR}" 2>/dev/null || true
 
     # Root CA fingerprint
     su-exec step step certificate fingerprint "${STEPPATH}/certs/root_ca.crt" \

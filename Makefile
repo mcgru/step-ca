@@ -19,12 +19,12 @@ restart:        ## Перезапустить CA без переинициали
 	docker compose restart step-ca
 
 shell:          ## Открыть shell в контейнере step-ca
-	docker compose exec step-ca /bin/sh
+	docker compose exec --user step step-ca /bin/sh
 
 ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert USER=john)
 	@if [ -z "$(USER)" ]; then echo "Usage: make ssh-cert USER=username"; exit 1; fi
 	mkdir -p data/certs
-	docker compose exec step-ca \
+	docker compose exec --user step step-ca \
 		step ssh certificate "$(USER)" "/home/step/certs/$(USER).pem" \
 		--provisioner "$(STEP_PROVISIONER_NAME)" \
 		--provisioner-password-file /home/step/secrets/provisioner-password

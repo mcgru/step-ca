@@ -5,12 +5,12 @@ services:
     ports:
       - "${STEP_CA_PORT}:8443"
     environment:
-      DOMAIN: ${DOMAIN}
-      STEP_CA_NAME: ${STEP_CA_NAME}
-      STEP_CA_DNS: ${STEP_CA_DNS}
-      STEP_CA_PASSWORD: ${STEP_CA_PASSWORD}
-      STEP_PROVISIONER_NAME: ${STEP_PROVISIONER_NAME}
-      STEP_PROVISIONER_PASSWORD: ${STEP_PROVISIONER_PASSWORD}
+      DOMAIN:
+      STEP_CA_NAME:
+      STEP_CA_DNS:
+      STEP_CA_PASSWORD:
+      STEP_PROVISIONER_NAME:
+      STEP_PROVISIONER_PASSWORD:
     volumes:
       - ./data:/home/step
       - ./nginx-config:/nginx-config

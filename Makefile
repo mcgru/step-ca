@@ -33,6 +33,28 @@ ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert US
 		--provisioner-password-file /home/step/secrets/provisioner-password
 	@echo "Cert saved to data/certs/$(USER).pem"
 
+provisioner-add: .env ## Добавить провизер (make provisioner-add NAME=admin2 TYPE=JWK)
+	@if [ -z "$(NAME)" ]; then echo "Usage: make provisioner-add NAME=name TYPE=JWK|ACME|OIDC [ARGS=...]"; exit 1; fi
+	docker compose exec --user step step-ca \
+		step ca provisioner add "$(NAME)" --type "$(TYPE)" $(ARGS) \
+		--admin-name "$(STEP_PROVISIONER_NAME)" \
+		--admin-password-file /home/step/secrets/provisioner-password
+	@echo "==> Provisioner '$(NAME)' added. Run 'make restart' to apply."
+
+provisioner-list: ## Список провизеров
+	docker compose exec --user step step-ca \
+		step ca provisioner list \
+		--admin-name "$(STEP_PROVISIONER_NAME)" \
+		--admin-password-file /home/step/secrets/provisioner-password
+
+provisioner-remove: .env ## Удалить провизер (make provisioner-remove NAME=admin2)
+	@if [ -z "$(NAME)" ]; then echo "Usage: make provisioner-remove NAME=name"; exit 1; fi
+	docker compose exec --user step step-ca \
+		step ca provisioner remove "$(NAME)" \
+		--admin-name "$(STEP_PROVISIONER_NAME)" \
+		--admin-password-file /home/step/secrets/provisioner-password
+	@echo "==> Provisioner '$(NAME)' removed. Run 'make restart' to apply."
+
 ca-cert:        ## Скопировать корневой сертификат CA в data/
 	docker compose cp step-ca:/home/step/certs/root_ca.crt data/
 	@echo "Saved to data/root_ca.crt"

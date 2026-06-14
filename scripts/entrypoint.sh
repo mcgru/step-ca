@@ -58,6 +58,7 @@ init_ca() {
 
 upstream step-ca-backend {
     server 127.0.0.1:8443;
+    server 172.17.0.1:8443;
 }
 
 # Пример server block (раскомментируйте и настройте под свой домен):
@@ -70,11 +71,18 @@ upstream step-ca-backend {
 #
 #    location / {
 #        proxy_pass https://step-ca-backend;
+#        proxy_ssl_name     step-ca;
+###      proxy_redirect     default;
 #
 #        # Клиентский сертификат для mTLS с step-ca
 #        proxy_ssl_certificate     /etc/nginx/ssl/client.crt;
-#        proxy_ssl_certificate_key /etc/nginx/ssl/client.key;
-#        proxy_ssl_verify          off;
+#        proxy_ssl_certificate_key /etc/nginx/ssl/client.nopass.key;
+#        proxy_ssl_verify          on;
+###        proxy_ssl_verify_depth 2;
+#
+###        proxy_ssl_trusted_certificate /etc/nginx/ssl/root_ca.crt;
+###        proxy_ssl_trusted_certificate /etc/nginx/ssl/intermediate_ca.crt;
+#        proxy_ssl_trusted_certificate /etc/nginx/ssl/ca.full-chain.crt;
 #
 #        proxy_set_header Host              $host;
 #        proxy_set_header X-Real-IP         $remote_addr;
@@ -88,6 +96,9 @@ NGINX_EOF
 
     # Replace placeholder with actual domain
     sed -i "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" "${NGINX_DIR}/step-ca.conf"
+
+    openssl ec -passin "file:${STEPPATH}/secrets/ca-password"  -in "${NGINX_DIR}/client.key"  -out "${NGINX_DIR}/client.nopass.key"
+    cat "${STEPPATH}/certs/intermediate_ca.crt" "${STEPPATH}/certs/root_ca.crt" >  "${NGINX_DIR}/ca.full-chain.crt"
 
     chown -R step:step "${NGINX_DIR}" 2>/dev/null || true
     echo "==> Nginx config generated in ${NGINX_DIR}/"

@@ -5,13 +5,6 @@ STEPPATH="${STEPPATH:-/home/step}"
 PASSWORD_FILE="${STEPPATH}/secrets/ca-password"
 NGINX_DIR="/nginx-config"
 
-# Fix ownership so step user can write to bind-mounted directories
-chown -R step:step "${STEPPATH}" 2>/dev/null || true
-
-if [ -d "${NGINX_DIR}" ]; then
-    chown -R step:step "${NGINX_DIR}" 2>/dev/null || true
-fi
-
 init_ca() {
     echo "==> Initializing CA..."
 
@@ -19,36 +12,35 @@ init_ca() {
     echo "${STEP_CA_PASSWORD}" > "${PASSWORD_FILE}"
     echo "${STEP_PROVISIONER_PASSWORD}" > "${STEPPATH}/secrets/provisioner-password"
 
-    su-exec step step ca init \
+    step ca init \
         --name="${STEP_CA_NAME}" \
         --dns="${STEP_CA_DNS}" \
         --address=":8443" \
         --provisioner="${STEP_PROVISIONER_NAME}" \
         --password-file="${PASSWORD_FILE}" \
         --provisioner-password-file="${STEPPATH}/secrets/provisioner-password" \
-        --ssh
+        --ssh < /dev/null
 
-    chown -R step:step "${STEPPATH}" 2>/dev/null || true
     echo "==> CA initialized."
 
     # ── Generate nginx config ──────────────────────────────
     echo "==> Generating nginx config..."
 
     mkdir -p "${NGINX_DIR}"
-    chown -R step:step "${NGINX_DIR}" 2>/dev/null || true
 
     # Root CA fingerprint
-    su-exec step step certificate fingerprint "${STEPPATH}/certs/root_ca.crt" \
+    step certificate fingerprint "${STEPPATH}/certs/root_ca.crt" \
         > "${NGINX_DIR}/fingerprint"
     echo "  Fingerprint: $(cat ${NGINX_DIR}/fingerprint)"
 
     # Client certificate for nginx <-> step-ca mutual TLS
-    su-exec step step certificate create "NGINX Client" \
+    step certificate create "NGINX Client" \
         "${NGINX_DIR}/client.crt" \
         "${NGINX_DIR}/client.key" \
         --ca "${STEPPATH}/certs/intermediate_ca.crt" \
         --ca-key "${STEPPATH}/secrets/intermediate_ca_key" \
-        --password-file "${PASSWORD_FILE}" \
+        --ca-password-file "${PASSWORD_FILE}" \
+        --no-password --insecure \
         --not-after=87600h
 
     # Nginx location config
@@ -76,7 +68,7 @@ upstream step-ca-backend {
 #
 #        # Клиентский сертификат для mTLS с step-ca
 #        proxy_ssl_certificate     /etc/nginx/ssl/client.crt;
-#        proxy_ssl_certificate_key /etc/nginx/ssl/client.nopass.key;
+#        proxy_ssl_certificate_key /etc/nginx/ssl/client.key;
 #        proxy_ssl_verify          on;
 ###        proxy_ssl_verify_depth 2;
 #
@@ -97,10 +89,9 @@ NGINX_EOF
     # Replace placeholder with actual domain
     sed -i "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" "${NGINX_DIR}/step-ca.conf"
 
-    openssl ec -passin "file:${STEPPATH}/secrets/ca-password"  -in "${NGINX_DIR}/client.key"  -out "${NGINX_DIR}/client.nopass.key"
-    cat "${STEPPATH}/certs/intermediate_ca.crt" "${STEPPATH}/certs/root_ca.crt" >  "${NGINX_DIR}/ca.full-chain.crt"
+    cat "${STEPPATH}/certs/intermediate_ca.crt" "${STEPPATH}/certs/root_ca.crt" \
+        > "${NGINX_DIR}/ca.full-chain.crt"
 
-    chown -R step:step "${NGINX_DIR}" 2>/dev/null || true
     echo "==> Nginx config generated in ${NGINX_DIR}/"
     echo "  - fingerprint"
     echo "  - client.crt / client.key"
@@ -115,7 +106,7 @@ fi
 
 # ── Passthrough for step CLI ─────────────────────────
 if [ $# -gt 0 ]; then
-    exec su-exec step "$@"
+    exec "$@"
 fi
 
 # ── Default: auto-init + start CA ────────────────────
@@ -123,4 +114,4 @@ if [ ! -f "${STEPPATH}/config/ca.json" ]; then
     init_ca
 fi
 
-exec su-exec step step-ca "${STEPPATH}/config/ca.json" --password-file="${PASSWORD_FILE}"
+exec step-ca "${STEPPATH}/config/ca.json" --password-file="${PASSWORD_FILE}"

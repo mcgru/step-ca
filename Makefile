@@ -52,11 +52,9 @@ help:           ## Показать эту справку
 
 data:
 	mkdir -p data
-####	chmod 777 data
 
 nginx-config:
 	mkdir -p nginx-config
-###	chmod 777 nginx-config
 
 .env:
 	cp .env.example .env

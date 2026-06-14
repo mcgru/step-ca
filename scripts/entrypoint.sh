@@ -5,6 +5,12 @@ STEPPATH="${STEPPATH:-/home/step}"
 PASSWORD_FILE="${STEPPATH}/secrets/ca-password"
 NGINX_DIR="/nginx-config"
 
+# Fix ownership so step user can write to bind-mounted dirs
+chown -R step:step "${STEPPATH}" 2>/dev/null || true
+if [ -d "${NGINX_DIR}" ]; then
+    chown -R step:step "${NGINX_DIR}" 2>/dev/null || true
+fi
+
 init_ca() {
     echo "==> Initializing CA..."
 
@@ -12,7 +18,7 @@ init_ca() {
     echo "${STEP_CA_PASSWORD}" > "${PASSWORD_FILE}"
     echo "${STEP_PROVISIONER_PASSWORD}" > "${STEPPATH}/secrets/provisioner-password"
 
-    step ca init \
+    su-exec step step ca init \
         --name="${STEP_CA_NAME}" \
         --dns="${STEP_CA_DNS}" \
         --address=":8443" \
@@ -27,14 +33,15 @@ init_ca() {
     echo "==> Generating nginx config..."
 
     mkdir -p "${NGINX_DIR}"
+    chown -R step:step "${NGINX_DIR}" 2>/dev/null || true
 
     # Root CA fingerprint
-    step certificate fingerprint "${STEPPATH}/certs/root_ca.crt" \
+    su-exec step step certificate fingerprint "${STEPPATH}/certs/root_ca.crt" \
         > "${NGINX_DIR}/fingerprint"
     echo "  Fingerprint: $(cat ${NGINX_DIR}/fingerprint)"
 
     # Client certificate for nginx <-> step-ca mutual TLS
-    step certificate create "NGINX Client" \
+    su-exec step step certificate create "NGINX Client" \
         "${NGINX_DIR}/client.crt" \
         "${NGINX_DIR}/client.key" \
         --ca "${STEPPATH}/certs/intermediate_ca.crt" \
@@ -92,6 +99,7 @@ NGINX_EOF
     cat "${STEPPATH}/certs/intermediate_ca.crt" "${STEPPATH}/certs/root_ca.crt" \
         > "${NGINX_DIR}/ca.full-chain.crt"
 
+    chown -R step:step "${NGINX_DIR}" 2>/dev/null || true
     echo "==> Nginx config generated in ${NGINX_DIR}/"
     echo "  - fingerprint"
     echo "  - client.crt / client.key"
@@ -106,7 +114,7 @@ fi
 
 # ── Passthrough for step CLI ─────────────────────────
 if [ $# -gt 0 ]; then
-    exec "$@"
+    exec su-exec step "$@"
 fi
 
 # ── Default: auto-init + start CA ────────────────────
@@ -114,4 +122,4 @@ if [ ! -f "${STEPPATH}/config/ca.json" ]; then
     init_ca
 fi
 
-exec step-ca "${STEPPATH}/config/ca.json" --password-file="${PASSWORD_FILE}"
+exec su-exec step step-ca "${STEPPATH}/config/ca.json" --password-file="${PASSWORD_FILE}"

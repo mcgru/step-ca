@@ -24,15 +24,17 @@ shell:          ## Открыть shell в контейнере step-ca
 sh:             ## Открыть shell в контейнере step-ca
 	docker compose exec --user step step-ca /bin/sh
 
-ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert u=john)
+ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert u=john [t=5m])
 	@if [ -z "$(u)" ]; then echo "Usage: make ssh-cert u=username"; exit 1; fi
 	@if [ -s ./.env ]; then source ./.env ; fi
+	@if [ -z "$(t)" ]; then t=5m ; fi
+	@t_opt="--not-after=$(t)"
 	mkdir -p data/certs/ssh-user-certs
 	docker compose exec --user step step-ca \
 		step ssh certificate "$(u)" "/home/step/certs/ssh-user-certs/$(u).pem" \
 		--provisioner "$$STEP_PROVISIONER_NAME" \
 		--provisioner-password-file /home/step/secrets/provisioner-password  \
-		--no-password --insecure
+		--no-password --insecure $(t_opt)
 	@echo "Cert saved to data/certs/ssh-user-certs/$(u).pem"
 
 provisioner-add: .env ## Добавить провизер (make provisioner-add NAME=admin2 TYPE=JWK)

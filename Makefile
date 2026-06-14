@@ -27,7 +27,9 @@ sh:             ## Открыть shell в контейнере step-ca
 ### t ?= 5m
 ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert u=john [t=5m])
 	@if [ -z "$(u)" ]; then echo "Usage: make ssh-cert u=username"; exit 1; fi
-	. ./.env && mkdir -p data/certs/ssh-user-certs && \
+	. ./.env && \
+	docker compose exec --user root step-ca mkdir -p /home/step/certs/ssh-user-certs && \
+	docker compose exec --user root step-ca chown step:step /home/step/certs/ssh-user-certs && \
 	docker compose exec --user step step-ca \
 		step ssh certificate "$(u)" "/home/step/certs/ssh-user-certs/$(u).pem" \
 		--provisioner "$$STEP_PROVISIONER_NAME" \
@@ -40,7 +42,9 @@ ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert u=
 
 ssh-host-cert: .env  ## Выпустить SSH-хостовый сертификат (make ssh-host-cert h=hostname [t=720h] [ARGS="-n alias"])
 	@if [ -z "$(h)" ]; then echo "Usage: make ssh-host-cert h=hostname"; exit 1; fi
-	. ./.env && mkdir -p data/certs/ssh-host-certs && \
+	. ./.env && \
+	docker compose exec --user root step-ca mkdir -p /home/step/certs/ssh-host-certs && \
+	docker compose exec --user root step-ca chown step:step /home/step/certs/ssh-host-certs && \
 	docker compose exec --user step step-ca \
 		step ssh certificate "$(h)" "/home/step/certs/ssh-host-certs/$(h).pem" \
 		--host \

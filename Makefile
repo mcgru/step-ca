@@ -26,9 +26,9 @@ sh:             ## Открыть shell в контейнере step-ca
 
 ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert u=john [t=5m])
 	@if [ -z "$(u)" ]; then echo "Usage: make ssh-cert u=username"; exit 1; fi
-	@if [ -s ./.env ]; then source ./.env ; fi
-	@if [ -z "$(t)" ]; then t=5m ; fi
-	@t_opt="--not-after=$(t)"
+	if [ -s ./.env ]; then source ./.env ; fi
+	if [ -z "$(t)" ]; then t=5m ; fi
+	t_opt="--not-after=$(t)"
 	mkdir -p data/certs/ssh-user-certs
 	docker compose exec --user step step-ca \
 		step ssh certificate "$(u)" "/home/step/certs/ssh-user-certs/$(u).pem" \

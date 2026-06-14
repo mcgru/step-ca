@@ -24,7 +24,7 @@ shell:          ## Открыть shell в контейнере step-ca
 sh:             ## Открыть shell в контейнере step-ca
 	docker compose exec --user step step-ca /bin/sh
 
-t ?= 5m
+### t ?= 5m
 ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert u=john [t=5m])
 	@if [ -z "$(u)" ]; then echo "Usage: make ssh-cert u=username"; exit 1; fi
 	. ./.env && mkdir -p data/certs/ssh-user-certs && \
@@ -36,6 +36,20 @@ ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert u=
 		--root /home/step/certs/root_ca.crt \
 		--not-after "$(or $(t),5m)"
 	@echo "Cert saved to data/certs/ssh-user-certs/$(u).pem"
+
+
+ssh-host-cert: .env  ## Выпустить SSH-хостовый сертификат (make ssh-host-cert h=hostname [t=720h] [ARGS="-n alias"])
+	@if [ -z "$(h)" ]; then echo "Usage: make ssh-host-cert h=hostname"; exit 1; fi
+	. ./.env && mkdir -p data/certs/ssh-host-certs && \
+	docker compose exec --user step step-ca \
+		step ssh certificate "$(h)" "/home/step/certs/ssh-host-certs/$(h).pem" \
+		--host \
+		--provisioner "$$STEP_PROVISIONER_NAME" \
+		--provisioner-password-file /home/step/secrets/provisioner-password \
+		--no-password --insecure \
+		--root /home/step/certs/root_ca.crt \
+		--not-after "$(or $(t),720h)" $(ARGS)
+	@echo "Host cert saved to data/certs/ssh-host-certs/$(h).pem"
 
 provisioner-add: .env ## Добавить провизер (make provisioner-add NAME=admin2 TYPE=JWK)
 	@if [ -z "$(NAME)" ]; then echo "Usage: make provisioner-add NAME=name TYPE=JWK|ACME|OIDC [ARGS=...]"; exit 1; fi

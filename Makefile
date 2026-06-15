@@ -39,9 +39,39 @@ ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert u=
 		--ca-url https://localhost:8443 \
 		--not-after "$(or $(t),5m)" --force < /dev/null && \
 	docker compose exec -T --user step step-ca \
-		tar czf /home/step/certs/ssh-user-certs/$(u).tar.gz \
-			-C /home/step/certs/ssh-user-certs \
-			$(u).pem $(u).pem.pub $(u).pem-cert.pub && \
+		sh -c 'printf "%s\n" \
+			"# SSH User Certificate for $$1" \
+			"" \
+			"## Files" \
+			"$$1.pem              - Private key (unencrypted)" \
+			"$$1.pem.pub          - Public key" \
+			"$$1.pem-cert.pub     - SSH certificate" \
+			"ssh_host_ca_key.pub  - Host CA public key (for known_hosts)" \
+			"README.md            - This file" \
+			"" \
+			"## Setup on client machine" \
+			"" \
+			"  1. Copy to ~/.ssh/:" \
+			"     cp $$1.pem ~/.ssh/id_ecdsa" \
+			"     chmod 600 ~/.ssh/id_ecdsa" \
+			"     cp $$1.pem-cert.pub ~/.ssh/id_ecdsa-cert.pub" \
+			"" \
+			"  2. Add host CA to known_hosts:" \
+			"     cat ssh_host_ca_key.pub | sed '\''s/^/@cert-authority */'\'' >> ~/.ssh/known_hosts" \
+			"" \
+			"  3. Connect:" \
+			"     ssh -i ~/.ssh/id_ecdsa $$1@host" \
+		> /tmp/README.md' _ "$(u)" && \
+	docker compose exec -T --user root step-ca sh -c '\
+		rm -rf /tmp/cert-pack && mkdir -p /tmp/cert-pack && \
+		cp /home/step/certs/ssh-user-certs/$$1.pem /tmp/cert-pack/ && \
+		cp /home/step/certs/ssh-user-certs/$$1.pem.pub /tmp/cert-pack/ && \
+		cp /home/step/certs/ssh-user-certs/$$1.pem-cert.pub /tmp/cert-pack/ && \
+		cp /home/step/certs/ssh_host_ca_key.pub /tmp/cert-pack/ && \
+		cp /tmp/README.md /tmp/cert-pack/ && \
+		chown -R step:step /tmp/cert-pack' _ "$(u)" && \
+	docker compose exec -T --user step step-ca \
+		tar czf /home/step/certs/ssh-user-certs/$(u).tar.gz -C /tmp/cert-pack . && \
 	docker compose exec -T --user step step-ca \
 		sh -c 'echo "( base64 -d | gunzip -d | tar x ) <<<$$(base64 -w0 /home/step/certs/ssh-user-certs/$$1.tar.gz)" > "/home/step/certs/ssh-user-certs/$$1.b64"' _ "$(u)"
 	@echo "Archive: data/certs/ssh-user-certs/$(u).tar.gz"
@@ -67,9 +97,40 @@ ssh-host-cert: .env  ## Выпустить SSH-хостовый сертифик
 		--ca-url https://localhost:8443 \
 		--not-after "$(or $(t),720h)" $(ARGS) --force < /dev/null && \
 	docker compose exec -T --user step step-ca \
-		tar czf /home/step/certs/ssh-host-certs/$(h).tar.gz \
-			-C /home/step/certs/ssh-host-certs \
-			$(h).pem $(h).pem.pub $(h).pem-cert.pub && \
+		sh -c 'printf "%s\n" \
+			"# SSH Host Certificate for $$1" \
+			"" \
+			"## Files" \
+			"$$1.pem               - Host private key" \
+			"$$1.pem.pub           - Host public key" \
+			"$$1.pem-cert.pub      - Host certificate" \
+			"ssh_user_ca_key.pub   - User CA public key (for sshd_config)" \
+			"README.md             - This file" \
+			"" \
+			"## Setup on target server" \
+			"" \
+			"  1. Install host key and certificate:" \
+			"     sudo cp $$1.pem /etc/ssh/ssh_host_ecdsa_key" \
+			"     sudo chmod 600 /etc/ssh/ssh_host_ecdsa_key" \
+			"     sudo cp $$1.pem-cert.pub /etc/ssh/ssh_host_ecdsa_key-cert.pub" \
+			"" \
+			"  2. Configure user CA:" \
+			"     sudo cp ssh_user_ca_key.pub /etc/ssh/" \
+			"     echo '\''TrustedUserCAKeys /etc/ssh/ssh_user_ca_key.pub'\'' | sudo tee -a /etc/ssh/sshd_config" \
+			"" \
+			"  3. Restart sshd:" \
+			"     sudo systemctl restart sshd" \
+		> /tmp/README.md' _ "$(h)" && \
+	docker compose exec -T --user root step-ca sh -c '\
+		rm -rf /tmp/cert-pack && mkdir -p /tmp/cert-pack && \
+		cp /home/step/certs/ssh-host-certs/$$1.pem /tmp/cert-pack/ && \
+		cp /home/step/certs/ssh-host-certs/$$1.pem.pub /tmp/cert-pack/ && \
+		cp /home/step/certs/ssh-host-certs/$$1.pem-cert.pub /tmp/cert-pack/ && \
+		cp /home/step/certs/ssh_user_ca_key.pub /tmp/cert-pack/ && \
+		cp /tmp/README.md /tmp/cert-pack/ && \
+		chown -R step:step /tmp/cert-pack' _ "$(h)" && \
+	docker compose exec -T --user step step-ca \
+		tar czf /home/step/certs/ssh-host-certs/$(h).tar.gz -C /tmp/cert-pack . && \
 	docker compose exec -T --user step step-ca \
 		sh -c 'echo "( base64 -d | gunzip -d | tar x ) <<<$$(base64 -w0 /home/step/certs/ssh-host-certs/$$1.tar.gz)" > "/home/step/certs/ssh-host-certs/$$1.b64"' _ "$(h)"
 	@echo "Archive: data/certs/ssh-host-certs/$(h).tar.gz"

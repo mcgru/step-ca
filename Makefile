@@ -28,37 +28,39 @@ sh:             ## Открыть shell в контейнере step-ca
 ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert u=john [t=5m])
 	@if [ -z "$(u)" ]; then echo "Usage: make ssh-cert u=username"; exit 1; fi
 	. ./.env && \
-	docker compose exec --user root step-ca mkdir -p /home/step/certs/ssh-user-certs && \
-	docker compose exec --user root step-ca chown step:step /home/step/certs/ssh-user-certs && \
-	docker compose exec --user step step-ca \
+	docker compose exec -T --user root step-ca mkdir -p /home/step/certs/ssh-user-certs && \
+	docker compose exec -T --user root step-ca chown step:step /home/step/certs/ssh-user-certs && \
+	docker compose exec -T --user step step-ca \
 		step ssh certificate "$(u)" "/home/step/certs/ssh-user-certs/$(u).pem" \
 		--provisioner "$$STEP_PROVISIONER_NAME" \
 		--provisioner-password-file /home/step/secrets/provisioner-password \
 		--no-password --insecure \
 		--root /home/step/certs/root_ca.crt \
-		--not-after "$(or $(t),5m)"
+		--ca-url https://localhost:8443 \
+		--not-after "$(or $(t),5m)" --force < /dev/null
 	@echo "Cert saved to data/certs/ssh-user-certs/$(u).pem"
 
 
 ssh-host-cert: .env  ## Выпустить SSH-хостовый сертификат (make ssh-host-cert h=hostname [t=720h] [ARGS="-n alias"])
 	@if [ -z "$(h)" ]; then echo "Usage: make ssh-host-cert h=hostname"; exit 1; fi
 	. ./.env && \
-	docker compose exec --user root step-ca mkdir -p /home/step/certs/ssh-host-certs && \
-	docker compose exec --user root step-ca chown step:step /home/step/certs/ssh-host-certs && \
-	docker compose exec --user step step-ca \
+	docker compose exec -T --user root step-ca mkdir -p /home/step/certs/ssh-host-certs && \
+	docker compose exec -T --user root step-ca chown step:step /home/step/certs/ssh-host-certs && \
+	docker compose exec -T --user step step-ca \
 		step ssh certificate "$(h)" "/home/step/certs/ssh-host-certs/$(h).pem" \
 		--host \
 		--provisioner "$$STEP_PROVISIONER_NAME" \
 		--provisioner-password-file /home/step/secrets/provisioner-password \
 		--no-password --insecure \
 		--root /home/step/certs/root_ca.crt \
-		--not-after "$(or $(t),720h)" $(ARGS)
+		--ca-url https://localhost:8443 \
+		--not-after "$(or $(t),720h)" $(ARGS) --force < /dev/null
 	@echo "Host cert saved to data/certs/ssh-host-certs/$(h).pem"
 
 provisioner-add: .env ## Добавить провизер (make provisioner-add NAME=admin2 TYPE=JWK)
 	@if [ -z "$(NAME)" ]; then echo "Usage: make provisioner-add NAME=name TYPE=JWK|ACME|OIDC [ARGS=...]"; exit 1; fi
 #	@if [ -s ./.env ]; then source ./.env ; fi
-	docker compose exec --user step step-ca \
+	docker compose exec -T --user step step-ca \
 		step ca provisioner add "$(NAME)" --type "$(TYPE)" $(ARGS)
 #		--admin-name "$$STEP_PROVISIONER_NAME" \
 #		--admin-password-file /home/step/secrets/provisioner-password
@@ -66,7 +68,7 @@ provisioner-add: .env ## Добавить провизер (make provisioner-add
 
 provisioner-list: ## Список провизеров
 #	@if [ -s ./.env ]; then source ./.env ; fi
-	docker compose exec --user step step-ca \
+	docker compose exec -T --user step step-ca \
 		step ca provisioner list
 #		--admin-name "$$STEP_PROVISIONER_NAME" \
 #		--admin-password-file /home/step/secrets/provisioner-password
@@ -74,7 +76,7 @@ provisioner-list: ## Список провизеров
 provisioner-remove: .env ## Удалить провизер (make provisioner-remove NAME=admin2)
 #	@if [ -s ./.env ]; then source ./.env ; fi
 	@if [ -z "$(NAME)" ]; then echo "Usage: make provisioner-remove NAME=name"; exit 1; fi
-	docker compose exec --user step step-ca \
+	docker compose exec -T --user step step-ca \
 		step ca provisioner remove "$(NAME)"
 #		--admin-name "$$STEP_PROVISIONER_NAME" \
 #		--admin-password-file /home/step/secrets/provisioner-password

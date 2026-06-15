@@ -37,8 +37,21 @@ ssh-cert: .env  ## Выпустить SSH-сертификат (make ssh-cert u=
 		--no-password --insecure \
 		--root /home/step/certs/root_ca.crt \
 		--ca-url https://localhost:8443 \
-		--not-after "$(or $(t),5m)" --force < /dev/null
-	@echo "Cert saved to data/certs/ssh-user-certs/$(u).pem"
+		--not-after "$(or $(t),5m)" --force < /dev/null && \
+	docker compose exec -T --user step step-ca \
+		tar czf /home/step/certs/ssh-user-certs/$(u).tar.gz \
+			-C /home/step/certs/ssh-user-certs \
+			$(u).pem $(u).pem.pub $(u).pem-cert.pub && \
+	docker compose exec -T --user step step-ca \
+		sh -c 'base64 -w0 "/home/step/certs/ssh-user-certs/$$1.tar.gz" > "/home/step/certs/ssh-user-certs/$$1.b64"' _ "$(u)"
+	@echo "Archive: data/certs/ssh-user-certs/$(u).tar.gz"
+	@echo "Base64:  data/certs/ssh-user-certs/$(u).b64"
+	@echo ""
+	@docker compose exec -T --user step step-ca cat /home/step/certs/ssh-user-certs/$(u).b64
+	@echo ""
+	@echo "cat << 'EOF' | base64 -d | gunzip -c | tar x"
+	@docker compose exec -T --user step step-ca cat /home/step/certs/ssh-user-certs/$(u).b64
+	@echo "EOF"
 
 
 ssh-host-cert: .env  ## Выпустить SSH-хостовый сертификат (make ssh-host-cert h=hostname [t=720h] [ARGS="-n alias"])
@@ -54,8 +67,21 @@ ssh-host-cert: .env  ## Выпустить SSH-хостовый сертифик
 		--no-password --insecure \
 		--root /home/step/certs/root_ca.crt \
 		--ca-url https://localhost:8443 \
-		--not-after "$(or $(t),720h)" $(ARGS) --force < /dev/null
-	@echo "Host cert saved to data/certs/ssh-host-certs/$(h).pem"
+		--not-after "$(or $(t),720h)" $(ARGS) --force < /dev/null && \
+	docker compose exec -T --user step step-ca \
+		tar czf /home/step/certs/ssh-host-certs/$(h).tar.gz \
+			-C /home/step/certs/ssh-host-certs \
+			$(h).pem $(h).pem.pub $(h).pem-cert.pub && \
+	docker compose exec -T --user step step-ca \
+		sh -c 'base64 -w0 "/home/step/certs/ssh-host-certs/$$1.tar.gz" > "/home/step/certs/ssh-host-certs/$$1.b64"' _ "$(h)"
+	@echo "Archive: data/certs/ssh-host-certs/$(h).tar.gz"
+	@echo "Base64:  data/certs/ssh-host-certs/$(h).b64"
+	@echo ""
+	@docker compose exec -T --user step step-ca cat /home/step/certs/ssh-host-certs/$(h).b64
+	@echo ""
+	@echo "cat << 'EOF' | base64 -d | gunzip -c | tar x"
+	@docker compose exec -T --user step step-ca cat /home/step/certs/ssh-host-certs/$(h).b64
+	@echo "EOF"
 
 provisioner-add: .env ## Добавить провизер (make provisioner-add NAME=admin2 TYPE=JWK)
 	@if [ -z "$(NAME)" ]; then echo "Usage: make provisioner-add NAME=name TYPE=JWK|ACME|OIDC [ARGS=...]"; exit 1; fi

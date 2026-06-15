@@ -15,6 +15,7 @@ init_ca() {
     echo "==> Initializing CA..."
 
     mkdir -p "${STEPPATH}/secrets"
+    chown step:step "${STEPPATH}/secrets"
     echo "${STEP_CA_PASSWORD}" > "${PASSWORD_FILE}"
     echo "${STEP_PROVISIONER_PASSWORD}" > "${STEPPATH}/secrets/provisioner-password"
 
